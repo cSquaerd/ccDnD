@@ -32,7 +32,7 @@ class DnDLevelExp(enum.IntEnum):
 
 class MonetaryValue:
 	def __init__(self, copper : int, silver : int = 0, gold : int = 0):
-		self.value = copper + 10 * silver + 100 * gold
+		self.value : int = copper + 10 * silver + 100 * gold
 
 	@classmethod
 	def from_gold(class_, amount : float) -> "MonetaryValue":
@@ -43,4 +43,28 @@ class MonetaryValue:
 	def __str__(self) -> str:
 		return f"\u20B2{self.value / 100:.2f}"
 
+	def get(self):
+		return self.value
 
+class AbilityScore:
+	def __init__(self, name : DnDAbilityName, value : int):
+		self.name = name
+		self.value = value
+	
+	def __str__(self) -> str:
+		return f"{self.getNamePrefix()}: {self.getScore(): >2d} {self.getBonus(): >+2d}"
+
+	def toStrNoName(self) -> str:
+		return str(self).split(':')[1].strip()
+
+	def getNamePrefix(self) -> str:
+		return self.name[:3].upper()
+
+	def getName(self) -> str:
+		return self.name
+
+	def getScore(self) -> int:
+		return self.value
+
+	def getBonus(self) -> int:
+		return (self.value - 10) // 2
