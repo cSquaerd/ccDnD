@@ -1,4 +1,7 @@
 import enum
+import random
+
+from typing import Optional
 
 class DnDAbilityName(enum.StrEnum):
 	STR = "Strength"
@@ -48,8 +51,8 @@ class MonetaryValue:
 
 class AbilityScore:
 	def __init__(self, name : DnDAbilityName, value : int):
-		self.name = name
-		self.value = value
+		self.name : DnDAbilityName = name
+		self.value : int = value
 	
 	def __str__(self) -> str:
 		return f"{self.getNamePrefix()}: {self.getScore(): >2d} {self.getBonus(): >+2d}"
@@ -68,3 +71,54 @@ class AbilityScore:
 
 	def getBonus(self) -> int:
 		return (self.value - 10) // 2
+
+class Dice:
+	def __init__(self, count : int, value : int, descriptor : Optional[str] = None):
+		self.count : int = count
+		self.value : int = value
+		self.descriptor : str = ""
+
+		if descriptor is not None:
+			self.descriptor = descriptor
+
+	def __str__(self) -> str:
+		return f"{self.descriptor + ': ' if len(self.descriptor) > 0 else ''}{self.count}d{self.value}"
+
+	def roll(self) -> int:
+		return sum([random.randint(1, self.value) for n in range(self.count)])
+
+	def getMin(self) -> int:
+		return self.count
+
+	def getMax(self) -> int:
+		return self.value * self.count
+
+class HitDice(Dice):
+	def __init__(self, count : int, value : int, descriptor : Optional[str] = None):
+		super().__init__(count, value, descriptor)
+		self.uses : int = count
+
+	def __str__(self) -> str:
+		return f"{super().__str__()} ({self.uses}/{self.count})"
+
+	def use(self) -> int:
+		if self.uses > 0:
+			self.uses -= 1
+			return random.randint(1, self.value)
+
+		return 0
+
+	def replenish(self, amount : Optional[int] = 1):
+		if amount > 0:
+			self.uses += min(self.count - self.uses, amount)
+
+class HitPoints:
+	def __init__(self, maximum : int, hitDice : Optional[list[HitDice]] = None):
+		self.value : int = maximum
+		self.maximum : int = maximum
+		self.hitDice = []
+
+		if hitDice is not None:
+			for d in hitDice:
+				self.hitDice.append(d)
+	
