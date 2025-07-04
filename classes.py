@@ -1,9 +1,13 @@
+import base64
 import enum
 import random
 
 from typing import Optional
 
 class DnDAbilityName(enum.StrEnum):
+	"""
+	Names of the Ability scores present in D&D
+	"""
 	STR = "Strength"
 	DEX = "Dexterity"
 	CON = "Constitution"
@@ -12,6 +16,9 @@ class DnDAbilityName(enum.StrEnum):
 	CHR = "Charisma"
 
 class DnDLevelExp(enum.IntEnum):
+	"""
+	The amounts of cumulative experience points needed to reach a corresponding level in D&D
+	"""
 	L01 = 0
 	L02 = 300
 	L03 = 900
@@ -34,6 +41,10 @@ class DnDLevelExp(enum.IntEnum):
 	L20 = 355000
 
 class MonetaryValue:
+	"""
+	Representation of a monetary value, broken down into copper, silver, and gold coins.
+	(copper is akin to a US penny, silver to a US dime, and gold to a US dollar)
+	"""
 	def __init__(self, copper : int, silver : int = 0, gold : int = 0):
 		self.value : int = copper + 10 * silver + 100 * gold
 
@@ -49,16 +60,34 @@ class MonetaryValue:
 	def get(self):
 		return self.value
 
+class AbilityScoreModifier:
+	def __init__(self, ability : DnDAbilityName, value : int, descriptor : Optional[str] = None):
+		self.ability : DnDAbilityName = ability
+		self.value : int = value
+
+		if descriptor is not None:
+			self.descriptor : str = descriptor
+		else:
+			self.descriptor : str = base64.urlsafe_b64encode(random.randbytes(6)).decode()
+	
 class AbilityScore:
-	def __init__(self, name : DnDAbilityName, value : int):
+	"""
+	Representation of a D&D Ability Score, with automatic bonus factoring
+	"""
+	def __init__(self, name : DnDAbilityName, value : int, modifyStrRep : bool = False):
 		self.name : DnDAbilityName = name
 		self.value : int = value
+		self.modifiers : dict[str, AbilityScoreModifier] = {}
+		self.modifyStrRep : bool = modifyStrRep
 	
 	def __str__(self) -> str:
-		return f"{self.getNamePrefix()}: {self.getScore(): >2d} {self.getBonus(): >+2d}"
+		return (
+			f"{self.getNamePrefix()}: "
+			f"{self.getScore(self.modifyStrRep): >2d} {self.getBonus(self.modifyStrRep): >+2d}"
+		)
 
 	def toStrNoName(self) -> str:
-		return str(self).split(':')[1].strip()
+		return str(self, ).split(':')[1].strip()
 
 	def getNamePrefix(self) -> str:
 		return self.name[:3].upper()
@@ -66,13 +95,36 @@ class AbilityScore:
 	def getName(self) -> str:
 		return self.name
 
-	def getScore(self) -> int:
+	def getScore(self, modified : bool = False) -> int:
+		if modified:
+			modifierSum = sum(map(lambda m : m.value, self.modifiers.values()))
+			return self.value + modifierSum
+
 		return self.value
 
-	def getBonus(self) -> int:
-		return (self.value - 10) // 2
+	def getBonus(self, modified : bool = False) -> int:
+		return (self.getScore(modified) - 10) // 2
+
+	def registerModifier(self, modifier : AbilityScoreModifier):
+		if modifier.ability != self.name:
+			raise ValueError(f"Ability mismatch ({modifier.ability} != {self.name})")
+		if modifier.descriptor not in self.modifiers:
+			self.modifiers[modifier.descriptor] = modifier
+
+	def deregisterModifier(self, descriptor : str):
+		if descriptor in self.modifiers:
+			del self.modifiers[descriptor]
+
+	def setModifyStrRep(self):
+		self.modifyStrRep = True
+	
+	def unsetModifyStrRep(self):
+		self.modifyStrRep = False
 
 class Dice:
+	"""
+	Representation of a single die or multiple dice of the same shape
+	"""
 	def __init__(self, count : int, value : int, descriptor : Optional[str] = None):
 		self.count : int = count
 		self.value : int = value
@@ -94,6 +146,9 @@ class Dice:
 		return self.value * self.count
 
 class HitDice(Dice):
+	"""
+	Specific Representation of a class's hit dice; count is akin to level
+	"""
 	def __init__(self, count : int, value : int, descriptor : Optional[str] = None):
 		super().__init__(count, value, descriptor)
 		self.uses : int = count
@@ -113,6 +168,9 @@ class HitDice(Dice):
 			self.uses += min(self.count - self.uses, amount)
 
 class HitPoints:
+	"""
+	Representation of a character's hit points, with consideration for hit dice
+	"""
 	def __init__(self, maximum : int, hitDice : Optional[list[HitDice]] = None):
 		self.value : int = maximum
 		self.maximum : int = maximum
