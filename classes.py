@@ -72,7 +72,14 @@ class AbilityScoreModifier:
 	
 class AbilityScore:
 	"""
-	Representation of a D&D Ability Score, with automatic bonus factoring
+	Representation of a D&D Ability Score, with automatic bonus factoring and a modifier system.
+
+	Items, Perks, Features, et cetera, can use an instance of the above AbilityScoreModifier class
+	to register with an instance of this class for a given Ability Score. This will store the value
+	that will modify the base Ability Score, of which there can be many. For methods that have it,
+	passing the modified boolean parameter as True will engage the modification calculation.
+	Furthermore, an internal flag can be toggled to persistently enable modification when casting
+	this class to a string
 	"""
 	def __init__(self, name : DnDAbilityName, value : int, modifyStrRep : bool = False):
 		self.name : DnDAbilityName = name
@@ -156,6 +163,9 @@ class HitDice(Dice):
 	def __str__(self) -> str:
 		return f"{super().__str__()} ({self.uses}/{self.count})"
 
+	def canUse(self) -> bool:
+		return self.uses > 0
+
 	def use(self) -> int:
 		if self.uses > 0:
 			self.uses -= 1
@@ -174,9 +184,34 @@ class HitPoints:
 	def __init__(self, maximum : int, hitDice : Optional[list[HitDice]] = None):
 		self.value : int = maximum
 		self.maximum : int = maximum
-		self.hitDice = []
+		self.hitDice : dict[str, HitDice] = {}
 
 		if hitDice is not None:
-			for d in hitDice:
-				self.hitDice.append(d)
+			for hd in hitDice:
+				self.hitDice[hd.descriptor] = hd
+
+	def tickUp(self):
+		if self.value < self.maximum:
+			self.value += 1
+
+	def tickDown(self):
+		self.value -= 1
+
+	def rest(self, hitDiceDescriptors : list[str] = []):
+
+		if len(hitDiceDescriptors) == 0:
+			descriptors = self.hitDice.keys()
+		else:
+			descriptors = hitDiceDescriptors
+
+		fullyHealed = False
+		for descriptor in descriptors:
+			hd = self.hitDice[descriptor]
+			while hd.canUse() and not fullyHealed:
+				self.value = minimum(self.value + hd.use(), self.maximum)
+
+				if self.value == self.maximum:
+					fullyHealed = True
+
+	
 	
