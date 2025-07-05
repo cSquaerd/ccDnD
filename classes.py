@@ -213,5 +213,23 @@ class HitPoints:
 				if self.value == self.maximum:
 					fullyHealed = True
 
-	
-	
+class Feature:
+	def __init__(
+		self, name : str, description : str, ability : Optional[DnDAbilityName] = None, value : Optional[int] = None
+	):
+		self.name : str = name
+		self.description : str = description
+		self.abilityModifier : Optional[AbilityScoreModifier] = None
+
+		if ability is not None and value is not None:
+			self.abilityModifier = AbilityScoreModifier(ability, value, f"FEATURE:{name}_({ability})")
+
+	def register(self, ability : AbilityScore) -> bool:
+		try:
+			ability.registerModifier(self.abilityModifier)
+			return True
+		except ValueError as ve:
+			return False
+
+	def unregister(self, ability : AbilityScore):
+		ability.deregisterModifier(self.abilityModifier.descriptor)
